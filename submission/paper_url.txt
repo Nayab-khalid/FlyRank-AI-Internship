@@ -1,1 +1,1 @@
-https://colab.research.google.com/gist/Nayab-khalid/6e30a438d72aa24167820a7392969990/01_first_look_and_discovery.ipynb
+https://github.com/flyrank-bih/flyrank-ml-internship-starter/blob/main/notebooks/01_first_look_and_discovery.ipynb
