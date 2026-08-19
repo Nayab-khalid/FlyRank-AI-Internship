@@ -1,1 +1,351 @@
-https://github.com/flyrank-bih/flyrank-ml-internship-starter/blob/main/notebooks/01_first_look_and_discovery.ipynb
+# Content Refresh Prioritization
+
+## Using Machine Learning to Help Content Teams Decide Which Pages to Review First
+
+**Nayab Khalid**
+**FlyRank ML Internship | Applied Search Intelligence**
+**August 2026**
+
+## Abstract
+
+Content teams often have more pages to review than they can realistically inspect. This study asks whether observable search performance, content and freshness signals can help a content team decide which pages to review first. The project uses the FlyRank anonymized content dataset and treats the task as binary classification, with the goal of ranking pages that show an observed declining trend. Logistic Regression was compared with a simple baseline using the same client grouped test set. The model achieved an Average Precision of 0.8715, an ROC AUC of 0.8496 and a Precision@50 of 1.00, compared with 0.4891, 0.5065 and 0.30 for the baseline. The result is measured and directional decision support for human review, not a causal explanation of search performance and not a prediction of Google's ranking system.
+
+## 1. Introduction and Problem Statement
+
+A content team may have thousands of pages but limited time for review. The main practical question is which pages should receive attention first.
+
+This project studies whether observable page and search signals can help create a better review order than a simple rule. The intended user is a content reviewer or SEO team member. The system produces a ranked list. A person then decides whether a page should be refreshed, expanded, protected, pruned or monitored.
+
+A wrong recommendation can waste editorial time or cause an important page to be missed. For this reason, the output is designed to support human review rather than make automatic content changes.
+
+## Research Question
+
+Can observable search and content signals be used to rank pages associated with an observed decline pattern so that limited human review capacity can be focused on the most relevant pages?
+
+The work began with the lane selected in the Week 1 notebook: Refresh and Content Opportunity Scoring. The Week 2 notebook then framed the problem as binary classification for content refresh prioritization. The primary success measure selected there was Precision@50.
+
+## 2. Data
+
+### 2.1 Starter Dataset
+
+The executed project work uses the FlyRank anonymized starter dataset. It contains 30,000 content pages and 44 source columns. The repository also documents a larger warehouse release of about 79 million daily search performance rows. The larger release is the broader internship data environment, while the executed model results reported in this paper come from the 30,000 page starter dataset.
+
+### 2.2 Data Tables
+
+The repository documents four main warehouse tables:
+
+• dim_clients contains one row for each pseudonymous client.
+
+• dim_content contains content information and keyword context.
+
+• fact_content_daily_performance contains daily performance by date, client and content.
+
+• fact_content_query_90d contains query information over a fixed 90 day window.
+
+The daily performance table has the grain of report date, client and content. The query table has the grain of client, content and query hash.
+
+### 2.3 Unit of Analysis
+
+For the executed starter dataset, one row represents one content page. The Week 2 notebook verified a dataset shape of 30,000 rows and 44 columns.
+
+### 2.4 Label
+
+The target is is_declining_label. It is equal to 1 when trend_direction is down and 0 otherwise. The starter dataset has an observed declining rate of 54.2 percent.
+
+### 2.5 Basic Data Findings
+
+The main observed values were:
+
+Content pages: 30,000
+
+Declining rate: 54.2 percent
+
+Median impressions over 90 days: 731
+
+Median days since last update: 20
+
+The Week 1 notebook reported these values directly from the starter data. The signal audit also found that traffic measures are strongly uneven, with many lower volume pages and a smaller number of high volume pages.
+
+## 3. Methodology
+
+### 3.1 Features
+
+The final model uses measurable page, search, engagement and keyword context information.
+
+Search visibility includes impressions, clicks, average position and CTR.
+
+Engagement includes sessions, users, engaged sessions, engagement rate and scroll rate.
+
+Content information includes word count, character count, content age and days since last update.
+
+Search context includes content type, search intent and competition level.
+
+Activity includes days with impressions, days with sessions, recent 30 day activity and previous 30 day activity.
+
+### 3.2 Missing Values
+
+The modeling pipeline uses median imputation for numeric variables. Categorical variables are filled with the most frequent value and then converted to indicator variables. Unknown categories are handled safely when the model sees a category that was not present during training.
+
+### 3.3 Fields Excluded
+
+trend_direction was excluded because it directly defines the target.
+
+trend_pct was excluded because it is derived from the same trend information.
+
+is_declining_label was excluded because it is the target itself.
+
+content_id was excluded as a predictive feature because it is an identifier.
+
+client_id was excluded as a predictive feature but retained for client grouped validation.
+
+Any future window information that overlaps the outcome period must be excluded.
+
+### 3.4 Baseline
+
+The Week 4 baseline is a simple transparent score. It combines staleness and search visibility. Older pages receive more staleness points. Pages with more impressions receive more visibility points. The baseline produces a reason code and an action for the review queue.
+
+The baseline uses the reason code stale_visible_page for its main refresh recommendation and the action REVIEW_REFRESH. It does not use the target, trend fields, product flags or future window information.
+
+### 3.5 Model
+
+Logistic Regression was selected because the task has two possible outcomes and the model provides a score that can be used to rank pages. It is also easier to explain than a highly complex model.
+
+### 3.6 Validation
+
+The model uses an 80 percent training and 20 percent test split grouped by client. The split uses random seed 42.
+
+Training rows: 23,837
+
+Test rows: 6,163
+
+Training clients: 25
+
+Test clients: 7
+
+Client overlap: 0
+
+The Week 5 notebook confirms that no client appears in both training and testing. The baseline was recreated on exactly the same test rows, making the model comparison fair.
+
+## 4. Signal Audit
+
+Before relying on signals, the Week 4 signal audit tested days since last update, search impressions and average position. All three were given a verdict of MIXED. This means the patterns were not strong enough to treat any one of them as a simple rule by itself.
+
+Days since last update: MIXED
+
+Search impressions: MIXED
+
+Average position: MIXED
+
+The audit also tested freshness because freshness is linked to the refresh logic used in the internship. The newest group had an observed decline rate of 51.14 percent. The oldest group had an observed decline rate of 60.00 percent. The notebook therefore recorded the flag linked verdict as CONFIRMED.
+
+This does not prove that updating a page will cause recovery. It only shows that older update groups had a higher observed decline rate in this dataset.
+
+## 5. Results
+
+### 5.1 Model Compared with Baseline
+
+The measured results from the executed Week 5 notebook were:
+
+Week 4 baseline:
+
+Average Precision: 0.489069
+
+ROC AUC: 0.506511
+
+Precision@50: 0.30
+
+Logistic Regression:
+
+Average Precision: 0.871540
+
+ROC AUC: 0.849590
+
+Precision@50: 1.00
+
+These values are taken from the executed Week 5 notebook. The Logistic Regression model had higher Average Precision, higher ROC AUC and higher Precision@50 than the baseline on the same held out test rows.
+
+The primary practical result is Precision@50 of 1.00 compared with 0.30 for the baseline. This means that, on this evaluated test set, all of the first 50 pages selected by the model belonged to the observed declining class.
+
+This is a result for the evaluated test set. It should not be treated as a guarantee for future data.
+
+### 5.2 Before and After Validation Audit
+
+The Week 6 audit compared a normal row based split with the client grouped split.
+
+Row based split Average Precision: 0.935525
+
+Client grouped split Average Precision: 0.871540
+
+The audit shows that performance is lower when client overlap is removed. The client grouped result is therefore treated as the more conservative and more honest estimate for the question of performance on unseen clients.
+
+### 5.3 Error Analysis
+
+The Week 5 notebook inspected the highest ranked false positives. Several had high impression volumes but were not labelled as declining. This shows that strong visibility can cause a page to receive a high model score even when the observed decline label is absent.
+
+Some false positives also had low traffic volumes. Low volume can make rates less stable, so these pages need more careful human review.
+
+## 6. Leakage and Privacy Check
+
+The Week 6 audit found zero forbidden fields in the final feature list. The audit confirmed that the target, trend_direction and trend_pct were not used as model features. Client and content identifiers were also not used as predictive inputs.
+
+The audit also records an important rule for the larger warehouse. Any feature from a future period must be excluded if it overlaps the outcome period. This is especially important when using fixed 90 day windows.
+
+The project remains public safe by avoiding client names, private domains, private URLs and private search queries.
+
+## 7. Action Playbook
+
+The Week 7 notebook turns the model output into a human reviewed action queue. The queue contains 30,000 pages.
+
+Refresh: 10,326 pages
+
+Monitor: 8,976 pages
+
+Protect and refresh: 7,076 pages
+
+CTR review: 2,220 pages
+
+Engagement review: 1,374 pages
+
+Expand: 28 pages
+
+The action queue is intended to help a content team decide where to look first. It does not automatically change content.
+
+### 7.1 Refresh
+
+Review pages that appear stale or show signs of decline while still having useful visibility.
+
+### 7.2 Protect and Refresh
+
+Review older pages that already have useful visibility. Make careful changes rather than rewriting without a reason.
+
+### 7.3 CTR Review
+
+Review pages with meaningful impressions and a reasonable search position but weak click through performance.
+
+### 7.4 Engagement Review
+
+Review pages that receive traffic but show weak engagement or scroll activity.
+
+### 7.5 Expand
+
+Review pages that appear thin and add useful information only when something important is missing.
+
+### 7.6 Monitor
+
+Continue watching pages when the evidence is unclear and an immediate content change is not justified.
+
+## 8. Limitations and Honest Framing
+
+The target is an observed trend label, not a direct measure of future business value.
+
+The data is observational, so the project cannot prove that one content change causes a performance change.
+
+Seasonality, demand, competition and other factors may affect search performance.
+
+Low volume can make some rates unstable.
+
+Client history is not evenly distributed.
+
+Search Console and Analytics availability can differ across clients and time periods.
+
+The model result depends on the population and validation design used.
+
+The strong Precision@50 result does not guarantee the same result on future data.
+
+The safest interpretation is that Logistic Regression showed measured and directional ability to rank pages associated with the observed decline label in this dataset. The output is decision support for human review. It is not a prediction of Google's ranking system and it is not proof of why a page declined.
+
+## 9. Recommendations
+
+The first recommendation is to use the model as a prioritization tool rather than an automatic content tool.
+
+The second recommendation is to keep the client grouped validation design when evaluating performance on new clients.
+
+The third recommendation is to review high ranked pages with a person before making any content change.
+
+The fourth recommendation is to pay particular attention to page freshness, search visibility and search position, while remembering that the signal audit found these signals were mixed when used alone.
+
+The fifth recommendation is to continue testing the model on later outcome periods. This would provide stronger evidence about whether the ranking remains useful over time.
+
+## 10. What Should Not Be Automated
+
+Publishing content without human review should not be automated.
+
+Deleting or pruning pages automatically should not be automated.
+
+Changing important URL or canonical decisions automatically should not be automated.
+
+Rewriting important pages without human review should not be automated.
+
+Claiming that a recommended change will cause recovery should not be automated.
+
+Treating a model score as proof should not be allowed.
+
+Using future outcome information as a feature should not be allowed.
+
+The model ranks the work. A person decides what should happen.
+
+## 11. Reproducibility
+
+The research is supported by the following notebooks in the public repository:
+
+w01_research_question.ipynb
+
+w02_ml_task_framing.ipynb
+
+w03_data_contract.ipynb
+
+w03_feature_leakage_check.ipynb
+
+w04_baseline_score.ipynb
+
+w04_signal_audit.ipynb
+
+w05_model.ipynb
+
+w06_validation_audit.ipynb
+
+w07_action_playbook.ipynb
+
+capstone.ipynb
+
+The public repository contains the project documentation, data dictionary, notebooks and reference workflow needed to inspect the work.
+
+Repository:
+
+[https://github.com/Nayab-khalid/FlyRank-AI-Internship](https://github.com/Nayab-khalid/FlyRank-AI-Internship)
+
+The capstone notebook is currently a skeleton that mirrors the required paper structure. The paper should therefore be based on the completed weekly notebooks and their actual outputs rather than claiming that the capstone notebook itself is already completed.
+
+## 12. Acknowledgments and Data Credit
+
+This work was completed as part of the FlyRank ML Internship.
+
+Built on the FlyRank ML Internship dataset.
+
+Data source:
+
+[https://flyrank.ai](https://flyrank.ai)
+
+The research uses anonymized data and follows the project requirement to keep client information private. No client names, private URLs or private search queries are included.
+
+## Conclusion
+
+This project tested whether machine learning could improve the prioritization of search content pages for human review.
+
+The work began by defining the research question and framing the task as binary classification. It then established a data contract, tested important signals, created a transparent baseline, built a Logistic Regression model, checked for leakage, used client grouped validation and converted the model output into a practical action playbook.
+
+On the evaluated client grouped test set, Logistic Regression produced stronger ranking results than the baseline. Precision@50 increased from 0.30 for the baseline to 1.00 for the model. Average Precision increased from 0.489069 to 0.871540, while ROC AUC increased from 0.506511 to 0.849590.
+
+The result suggests that observable search, content and engagement signals can provide useful information for prioritizing content pages for human review.
+
+The result should still be treated carefully. The model does not explain Google's ranking system, prove why a page declined or guarantee that refreshing a page will improve future performance.
+
+The most appropriate use is as a decision support tool that helps a content team decide where to look first, while keeping final decisions with a human reviewer.
+
+## Acknowledgment
+
+Built on the FlyRank ML Internship dataset.
+
+Data source: [https://flyrank.ai](https://flyrank.ai)
+
+Research and analysis completed as part of the FlyRank ML Internship.
