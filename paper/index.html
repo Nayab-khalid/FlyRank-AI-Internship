@@ -1,390 +1,1483 @@
-Content Refresh Prioritization
-
-Using Machine Learning to Help Content Teams Decide Which Pages to Review First
-
-Author: Nayab Khalid
-Lane: Refresh and Content Opportunity Scoring
-Repository: [https://github.com/Nayab-khalid/FlyRank-AI-Internship](https://github.com/Nayab-khalid/FlyRank-AI-Internship)
-Date: August 2026
-
-Abstract
-
-This project asks whether observable search, content and freshness signals can help a content team decide which pages should be reviewed first. The executed analysis uses the FlyRank anonymized starter dataset containing 30,000 content pages, while the larger warehouse release is documented as the broader internship data environment. The task was framed as binary classification, using a transparent baseline and Logistic Regression with client grouped validation. On the same held out test rows, Logistic Regression achieved an Average Precision of 0.871540, ROC AUC of 0.849590 and Precision@50 of 1.00, compared with 0.489069, 0.506511 and 0.30 for the baseline. The output is intended as measured and directional decision support that helps a human reviewer prioritize content work, not as a causal explanation of search performance or a prediction of Google's ranking system.
-
-1. Problem Framing
-
-The decision supported by this project is which content pages a content team should review first.
-
-A content team may have many pages but limited time. A ranked list can help the team spend its review time on pages that appear more relevant to the defined decline problem.
-
-For the executed starter dataset, one row represents one content page.
-
-The output is a score for each page. Pages can then be ranked from higher score to lower score.
-
-The Week 4 baseline also produces a ranked queue with an action and reason code.
-
-A human reviewer uses the ranked queue to decide whether a page should be refreshed, protected and refreshed carefully, reviewed for click through rate, reviewed for engagement, expanded or monitored.
-
-A false positive can waste editorial time on a page that does not need attention. A false negative can cause a page that deserves review to be missed. There is also a risk of damaging a useful page if a recommendation is acted on without human review.
-
-Machine learning helps because a simple rule can identify obvious cases, while many pages have several signals at the same time. The model provides a way to combine multiple measurable signals into one ranking score.
-
-The model is therefore used to prioritize human review rather than replace human judgement.
-
-2. Data Safety
-
-The executed modeling work uses the FlyRank anonymized starter dataset.
-
-The starter dataset contains 30,000 content pages and 44 source columns covering 32 pseudonymized clients.
-
-The repository also documents a larger warehouse release containing approximately 79 million daily search performance rows. The 30,000 page starter dataset is the source of the model results reported in this paper.
-
-The repository documents four main warehouse tables.
-
-dim_clients contains one row per pseudonymized client.
-
-dim_content contains content information and keyword context.
-
-fact_content_daily_performance contains daily performance by report date, client and content.
-
-fact_content_query_90d contains query information over a fixed 90 day window.
-
-The daily performance table has the grain of report date, client and content. The query table has the grain of client, content and query hash.
-
-For the executed starter dataset, one row represents one content page.
-
-The target is is_declining_label. It is equal to 1 when trend_direction is down and 0 otherwise.
-
-The starter dataset contains 16,262 declining rows, which is approximately 54.2 percent of the dataset.
-
-The positive class base rate is therefore approximately 54.2 percent. This is important when interpreting Precision@50 because a high precision score should be considered together with the class distribution and other discrimination metrics.
-
-The following fields were deliberately excluded.
-
-trend_direction was excluded because it directly defines the target.
-
-trend_pct was excluded because it is derived from the same trend information.
-
-is_declining_label was excluded because it is the target itself.
-
-content_id was excluded as a predictive feature because it is an identifier.
-
-client_id was excluded as a predictive feature but retained where needed for client grouped validation.
-
-Future outcome information must also be excluded whenever it overlaps the outcome period.
-
-The project uses anonymized data. No client names, private domains, private URLs or private search queries are included in the research artifact.
-
-3. Baseline
-
-The Week 4 baseline is a transparent rule based score.
-
-The rule combines content staleness and search visibility. Older pages receive more staleness points, while pages with more impressions receive more visibility points.
-
-The baseline produces a ranked queue with a reason code and an action.
-
-The main reason code is stale_visible_page.
-
-The associated action is REVIEW_REFRESH.
-
-The baseline is a fair comparison because it is evaluated on exactly the same held out test rows as the Logistic Regression model.
-
-The baseline results were:
-
-Average Precision: 0.489069
-
-ROC AUC: 0.506511
-
-Precision@50: 0.30
-
-The baseline provides a simple reference point. A machine learning model should only be considered useful if it can improve on this transparent rule.
-
-4. Model and Analysis
-
-Logistic Regression was selected for the main model.
-
-It fits the problem because the target has two possible outcomes and the model produces a probability score that can be used to rank pages. It is also relatively easy to interpret compared with more complex models.
-
-The target represents whether the page belongs to the observed declining group based on trend_direction.
-
-It is a proxy for an observed decline pattern and not a direct measure of future business value.
-
-The model uses measurable information from several groups.
-
-Search performance includes impressions, clicks, sessions, users, engaged sessions, AI referred sessions, days with impressions and days with sessions.
-
-Recent activity includes impressions, clicks and sessions from the most recent 30 day window and the previous 30 day window.
-
-Content information includes word count, character count, content age and days since last update.
-
-Derived search signals include CTR, average position, engagement rate, scroll rate and AI traffic percentage.
-
-Categorical context includes content type, main intent and competition level.
-
-Numeric missing values are handled using median imputation. Categorical missing values are handled using a safe categorical representation.
-
-The data dictionary notes that missingness is systematic rather than random, so missing values should not simply be assumed to mean zero.
-
-The leakage audit checked the final feature list for forbidden fields.
-
-The final audit found zero forbidden fields in the final feature set.
-
-The target and its direct source were excluded.
-
-Pseudonymous identifiers were not used as predictive features.
-
-Future information that overlaps the outcome period must also be excluded when using the larger warehouse.
-
-5. Evaluation
-
-The final model evaluation uses an 80 percent training and 20 percent test split grouped by client.
-
-The random seed was 42.
-
-Training rows: 23,837
-
-Test rows: 6,163
-
-Training clients: 25
-
-Test clients: 7
-
-Client overlap: 0
-
-The grouped split is important because it tests the model on clients that were not present in the training data. This is more conservative than allowing pages from the same client to appear in both training and testing.
-
-The model and baseline were evaluated on the same held out test rows.
-
-The results were:
-
-Baseline
-
-Average Precision: 0.489069
-
-ROC AUC: 0.506511
-
-Precision@50: 0.30
-
-Logistic Regression
-
-Average Precision: 0.871540
-
-ROC AUC: 0.849590
-
-Precision@50: 1.00
-
-The model produced stronger results than the baseline on the same held out test rows.
-
-Average Precision increased from 0.489069 to 0.871540.
-
-ROC AUC increased from 0.506511 to 0.849590.
-
-Precision@50 increased from 0.30 to 1.00.
-
-The positive class base rate is approximately 54.2 percent. The model's Precision@50 of 1.00 is therefore substantially higher than the overall positive class rate.
-
-The Week 6 validation audit compared an ordinary row based split with the client grouped split.
-
-The row based split produced an Average Precision of 0.935525.
-
-The client grouped split produced an Average Precision of 0.871540.
-
-Performance was lower when client overlap was removed. The client grouped result is therefore treated as the more conservative result for this study.
-
-The model still produces incorrect rankings.
-
-Some high ranked false positives have high impression volumes but do not belong to the observed declining class.
-
-This means that high visibility alone can produce a high model score even when the target is not present.
-
-Some pages also have low traffic volume. Low volume can make percentage based signals less stable, so these pages require more careful human review.
-
-6. Interpretation
-
-The model found useful information in combinations of search performance, content and engagement signals.
-
-However, the signal audit showed an important limitation.
-
-Days since last update received a MIXED verdict.
-
-Search impressions received a MIXED verdict.
-
-Average position received a MIXED verdict.
-
-This means that no single signal was strong enough to serve as a complete rule on its own.
-
-The audit also tested freshness because freshness is linked to the refresh logic used in the internship.
-
-The newest update group had an observed decline rate of 51.14 percent.
-
-The oldest update group had an observed decline rate of 60.00 percent.
-
-The flag linked test was therefore recorded as CONFIRMED.
-
-This does not prove that updating a page will cause its search performance to recover. It only shows that older update groups had a higher observed decline rate in this dataset.
-
-The model can help rank pages associated with the observed decline label.
-
-It does not tell us exactly why a page declined.
-
-It does not tell us that a content change will improve performance.
-
-It does not predict Google's ranking algorithm.
-
-The result is best understood as a prioritization signal.
-
-7. Recommendation
-
-The final output should be used as a human reviewed action queue.
-
-Refresh
-
-Review pages that appear stale or show signs associated with decline while still having useful visibility. The reviewer should check whether the information is outdated, incomplete or no longer aligned with the intended search need.
-
-Protect and Refresh
-
-Review older pages that already have useful visibility. These pages should be changed carefully because unnecessary changes may damage useful existing coverage.
-
-CTR Review
-
-Review pages with meaningful impressions and reasonable search positions but weak click through performance. The reviewer should inspect the search result presentation and whether the page matches the search intent.
-
-Engagement Review
-
-Review pages that receive traffic but show weak engagement or scroll activity. The reviewer should check readability, page structure and whether the content quickly answers the visitor's need.
-
-Expand
-
-Review pages that appear thin when there is evidence that useful information is missing. Expansion should only be recommended when there is a clear content reason.
-
-Monitor
-
-Continue monitoring pages when the available evidence is weak or unclear. Not every page requires an immediate change.
-
-The Week 7 action queue contains 30,000 pages.
-
-Refresh: 10,326 pages
-
-Monitor: 8,976 pages
-
-Protect and refresh: 7,076 pages
-
-CTR review: 2,220 pages
-
-Engagement review: 1,374 pages
-
-Expand: 28 pages
-
-Every high ranked recommendation should be reviewed by a person before action.
-
-The reviewer should consider the actual page content, current information, search intent, current search result context, seasonality, traffic volume, possible competing pages, strategic importance and whether the proposed change could damage existing performance.
-
-The model should not automatically publish content, delete or prune pages, change important URL or canonical decisions, rewrite important pages, or claim that an edit will cause recovery.
-
-The model ranks the work. A human decides what should happen.
-
-The confidence in the ranking is supported by the measured improvement over the baseline on the evaluated test set. However, the result remains limited to the evaluated population and validation design. The action queue should therefore be treated as decision support rather than an automatic instruction list.
-
-8. Reproducibility
-
-The research is supported by the following notebooks in the public repository.
-
-w01_research_question.ipynb
-
-w02_ml_task_framing.ipynb
-
-w03_data_contract.ipynb
-
-w03_feature_leakage_check.ipynb
-
-w04_baseline_score.ipynb
-
-w04_signal_audit.ipynb
-
-w05_model.ipynb
-
-w06_validation_audit.ipynb
-
-w07_action_playbook.ipynb
-
-capstone.ipynb
-
-Repository:
-
-[https://github.com/Nayab-khalid/FlyRank-AI-Internship](https://github.com/Nayab-khalid/FlyRank-AI-Internship)
-
-The main reproducibility setting is random seed 42.
-
-The validation design is an 80 percent training and 20 percent testing split grouped by client.
-
-The model comparison uses the same held out test rows for both the baseline and Logistic Regression model.
-
-The completed weekly notebooks contain the executed analysis that supports the numbers reported in this paper.
-
-The capstone notebook is currently a skeleton that mirrors the paper structure. The final paper should therefore be based on the completed weekly notebooks and their actual outputs rather than claiming that the capstone notebook itself is already completed.
-
-Before final deployment, the complete workflow should be run again from a fresh repository clone so that the reported numbers can be checked against a fresh execution.
-
-9. Acknowledgments and Data Credit
-
-Built on the FlyRank ML Internship dataset.
-
-Data source: [https://flyrank.ai](https://flyrank.ai)
-
-This work was completed as part of the FlyRank ML Internship.
-
-The analysis uses anonymized data and follows the project's public safety requirements. No client names, private URLs or private search queries are included.
-
-Limitations and Honest Framing
-
-This study has several important limitations.
-
-The target is an observed decline label rather than a direct future outcome.
-
-The data is observational, so the project cannot prove that a content change causes search performance to improve.
-
-Seasonality, demand, competition and other factors can affect search performance.
-
-Low traffic volume can make percentage based signals unstable.
-
-Client history is not evenly distributed.
-
-Search Console and Analytics availability can differ across clients and time periods.
-
-Model performance may change when the population or time period changes.
-
-The strong Precision@50 result should not be treated as a guarantee of future performance.
-
-The appropriate claim is:
-
-In this dataset, Logistic Regression showed measured and directional ability to rank pages associated with the observed decline label. The output is intended as decision support for prioritizing human content review. It is not a prediction of Google's ranking system and it does not establish why a page declined.
-
-Conclusion
-
-This project tested whether machine learning could improve the prioritization of search content pages for human review.
-
-The work began by defining the research question and framing the problem as binary classification. It then established a data contract, tested important signals, created a transparent baseline, built a Logistic Regression model, checked for leakage, used client grouped validation and converted the model output into an action playbook.
-
-On the evaluated client grouped test set, Logistic Regression produced stronger ranking results than the baseline.
-
-Average Precision increased from 0.489069 for the baseline to 0.871540 for Logistic Regression.
-
-ROC AUC increased from 0.506511 to 0.849590.
-
-Precision@50 increased from 0.30 to 1.00.
-
-The positive class base rate was approximately 54.2 percent, so the Precision@50 result is substantially above the overall class rate.
-
-The validation audit also showed that performance decreased when the evaluation was made more conservative by grouping clients. This supports using the grouped result rather than relying on the stronger row based result.
-
-The overall finding is that observable search, content and engagement signals can provide useful information for prioritizing pages for human review in this dataset.
-
-The model should remain a decision support tool.
-
-It should not be used to automatically change content.
-
-It should not be used to claim that a specific content change will cause recovery.
-
-It should not be described as a prediction of Google's ranking algorithm.
-
-The most appropriate use is simple: the model helps the content team decide where to look first, while a human reviewer makes the final decision.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which content pages should a team review first? | Nayab Khalid</title>
+<meta name="description" content="Can observable search, content and freshness signals help a content team decide which pages to review first? A FlyRank ML Internship research paper by Nayab Khalid.">
+<meta name="author" content="Nayab Khalid">
+<meta name="color-scheme" content="light dark">
+<meta property="og:title" content="Content Refresh Prioritization">
+<meta property="og:description" content="Using machine learning to help content teams decide which pages to review first. FlyRank ML Internship research paper.">
+<meta property="og:type" content="article">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f8f8f6;
+    --border: #ddddd8;
+    --text: #1b1b1a;
+    --muted: #5d5d58;
+    --accent: #1f4e79;
+    --accent-soft: #eef2f7;
+    --mono-bg: #f0f0ec;
+    --track: #e5e5e0;
+    --bar-muted: #a3a39c;
+    --rule: #8c7a4b;
+    --shadow: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171a;
+      --surface: #1c1e21;
+      --border: #2e3136;
+      --text: #e4e4e2;
+      --muted: #a0a09a;
+      --accent: #85b3e0;
+      --accent-soft: #1c2732;
+      --mono-bg: #23262a;
+      --track: #2b2e33;
+      --bar-muted: #6e7278;
+      --rule: #c2a866;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    font-size: 1.0625rem;
+    line-height: 1.62;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--accent);
+    color: #fff;
+    padding: .5rem 1rem;
+    z-index: 10;
+  }
+  .skip-link:focus { left: 0; }
+
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .wrap {
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 0 1.25rem 5rem;
+  }
+
+  /* Header */
+
+  .paper-header {
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 0 1.75rem;
+    margin-bottom: 2.25rem;
+  }
+
+  .eyebrow {
+    margin: 0 0 .8rem;
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1 {
+    margin: 0 0 .4rem;
+    font-size: clamp(1.85rem, 1.3rem + 2.2vw, 2.75rem);
+    line-height: 1.18;
+    letter-spacing: -.01em;
+    font-weight: 700;
+  }
+
+  .subtitle {
+    margin: 0 0 1.75rem;
+    font-size: clamp(1.05rem, .95rem + .5vw, 1.25rem);
+    color: var(--muted);
+    max-width: 48ch;
+  }
+
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: .9rem 2rem;
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .9375rem;
+  }
+  .meta dt {
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: .1rem;
+  }
+  .meta dd { margin: 0; }
+  .meta a { word-break: break-word; }
+
+  /* Layout */
+
+  .layout { display: block; }
+
+  @media (min-width: 68rem) {
+    .layout {
+      display: grid;
+      grid-template-columns: 15rem minmax(0, 1fr);
+      gap: 3.5rem;
+      align-items: start;
+    }
+  }
+
+  /* Contents */
+
+  .toc {
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .9375rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  @media (min-width: 68rem) {
+    .toc {
+      position: sticky;
+      top: 1.5rem;
+      max-height: calc(100vh - 3rem);
+      overflow-y: auto;
+      margin-bottom: 0;
+      border: 0;
+      border-left: 1px solid var(--border);
+      border-radius: 0;
+      padding: .25rem 0 .25rem 1.25rem;
+    }
+  }
+
+  .toc h2 {
+    margin: 0 0 .8rem;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 0;
+    padding: 0;
+  }
+  .toc ol { margin: 0; padding: 0; list-style: none; }
+  .toc li { margin: 0 0 .45rem; }
+  .toc a {
+    color: var(--text);
+    text-decoration: none;
+    display: flex;
+    gap: .5rem;
+    line-height: 1.35;
+  }
+  .toc a:hover { color: var(--accent); text-decoration: underline; }
+  .toc .toc-num {
+    flex: 0 0 1.25rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Sections */
+
+  main { max-width: 42rem; }
+
+  section { margin-bottom: 2.75rem; }
+
+  section > h2 {
+    font-size: 1.3rem;
+    line-height: 1.3;
+    margin: 0 0 1rem;
+    padding-bottom: .4rem;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+    scroll-margin-top: 1.5rem;
+  }
+
+  section > h2 .sec-num {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    margin-right: .45rem;
+    font-weight: 400;
+  }
+
+  h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 1.8rem 0 .5rem;
+    scroll-margin-top: 1.5rem;
+  }
+
+  p { margin: 0 0 1rem; }
+
+  ul, ol { margin: 0 0 1.15rem; padding-left: 1.3rem; }
+  li { margin-bottom: .35rem; }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: .8438em;
+    background: var(--mono-bg);
+    border-radius: 3px;
+    padding: .1em .3em;
+  }
+
+  pre {
+    background: var(--mono-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: .9rem 1rem;
+    overflow-x: auto;
+    margin: 0 0 1.2rem;
+    font-size: .8438rem;
+    line-height: 1.6;
+  }
+  pre code { background: none; padding: 0; font-size: 1em; }
+
+  blockquote {
+    margin: 1.25rem 0;
+    padding: .25rem 0 .25rem 1.1rem;
+    border-left: 2px solid var(--border);
+    color: var(--text);
+  }
+  blockquote p:last-child { margin-bottom: 0; }
+
+  .note {
+    margin: 1.25rem 0;
+    padding: .9rem 1.1rem;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--rule);
+    border-radius: 3px;
+    font-size: .9688rem;
+    background: var(--surface);
+  }
+  .note p { margin: 0 0 .6rem; }
+  .note p:last-child { margin-bottom: 0; }
+  .note .note-label {
+    display: block;
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--rule);
+    margin-bottom: .4rem;
+  }
+
+  .abstract {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 1.4rem 0;
+  }
+  .abstract > h2 { border-bottom: 0; padding-bottom: 0; margin-bottom: .6rem; font-size: 1.05rem; }
+  .abstract p { margin-bottom: 0; font-size: 1rem; }
+
+  /* Tables */
+
+  .table-wrap {
+    overflow-x: auto;
+    margin: 0 0 1.4rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .9063rem;
+  }
+
+  caption {
+    caption-side: top;
+    text-align: left;
+    padding: 0 0 .55rem;
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .8125rem;
+    color: var(--muted);
+  }
+  caption strong { color: var(--text); font-weight: 600; }
+
+  th, td {
+    text-align: left;
+    padding: .5rem .85rem .5rem 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th:last-child, td:last-child { padding-right: 0; }
+
+  thead th {
+    font-size: .8125rem;
+    font-weight: 600;
+    color: var(--muted);
+    border-bottom: 1px solid var(--text);
+    white-space: nowrap;
+  }
+
+  tbody th { font-weight: 400; }
+
+  tfoot th, tfoot td {
+    border-top: 1px solid var(--text);
+    border-bottom: 0;
+    font-weight: 600;
+  }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .win { font-weight: 600; }
+
+  /* Figures */
+
+  figure.fig {
+    margin: 0 0 1.6rem;
+    padding: 0;
+  }
+
+  figure.fig figcaption {
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .8125rem;
+    color: var(--muted);
+    margin-bottom: .7rem;
+  }
+  figure.fig figcaption strong { color: var(--text); font-weight: 600; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: .8rem;
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .8125rem;
+    color: var(--muted);
+  }
+  .swatch {
+    display: inline-block;
+    width: .7rem;
+    height: .7rem;
+    margin-right: .35rem;
+    vertical-align: baseline;
+  }
+  .swatch.model { background: var(--accent); }
+  .swatch.base { background: var(--bar-muted); }
+  .swatch.ref {
+    width: 0;
+    height: .8rem;
+    border-left: 2px dashed var(--rule);
+    margin-right: .5rem;
+  }
+
+  .chart {
+    display: grid;
+    gap: .45rem;
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .8438rem;
+    padding: .9rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
+
+  .chart .row {
+    display: grid;
+    grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr) 3.4rem;
+    align-items: center;
+    gap: .6rem;
+  }
+
+  .chart .row.sub .lbl { color: var(--muted); }
+  .chart .lbl { line-height: 1.25; }
+  .chart .lbl .n { display: block; color: var(--muted); font-size: .75rem; }
+
+  .track {
+    position: relative;
+    background: var(--track);
+    height: 1rem;
+  }
+
+  .bar {
+    height: 100%;
+    background: var(--accent);
+    min-width: 2px;
+  }
+  .bar.muted { background: var(--bar-muted); }
+
+  .track.ref::after {
+    content: "";
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    left: var(--ref);
+    border-left: 2px dashed var(--rule);
+  }
+
+  .val {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .fig-note {
+    margin: .7rem 0 0;
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .8125rem;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  /* Footer */
+
+  footer {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: .8438rem;
+    color: var(--muted);
+  }
+  footer p { margin: 0 0 .4rem; }
+
+  /* Print */
+
+  @media print {
+    :root {
+      --bg: #fff; --text: #000; --muted: #444; --surface: #fff; --border: #bbb;
+      --accent: #000; --accent-soft: #fff; --mono-bg: #fff; --track: #ddd;
+      --bar-muted: #999; --rule: #666;
+    }
+    body { font-size: 10.5pt; }
+    .toc, .skip-link { display: none; }
+    .layout { display: block; }
+    main { max-width: none; }
+    section { margin-bottom: 1.4rem; }
+    section > h2, h3 { page-break-after: avoid; }
+    .table-wrap, blockquote, .note, figure.fig { page-break-inside: avoid; }
+    a { text-decoration: none; color: #000; }
+  }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<div class="wrap">
+
+  <header class="paper-header">
+    <p class="eyebrow">FlyRank ML Internship &middot; Research Paper</p>
+    <h1>Content Refresh Prioritization</h1>
+    <p class="subtitle">Using machine learning to help content teams decide which pages to review first</p>
+    <dl class="meta">
+      <div>
+        <dt>Author</dt>
+        <dd>Nayab Khalid</dd>
+      </div>
+      <div>
+        <dt>Lane</dt>
+        <dd>Refresh and Content Opportunity Scoring</dd>
+      </div>
+      <div>
+        <dt>Date</dt>
+        <dd><time datetime="2026-08">August 2026</time></dd>
+      </div>
+      <div>
+        <dt>Repository</dt>
+        <dd><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship">Nayab-khalid/FlyRank-AI-Internship</a></dd>
+      </div>
+    </dl>
+  </header>
+
+  <div class="layout">
+
+    <nav class="toc" aria-labelledby="toc-heading">
+      <h2 id="toc-heading">Contents</h2>
+      <ol>
+        <li><a href="#abstract"><span class="toc-num" aria-hidden="true"></span>Abstract</a></li>
+        <li><a href="#introduction"><span class="toc-num" aria-hidden="true">1</span>Introduction</a></li>
+        <li><a href="#data"><span class="toc-num" aria-hidden="true">2</span>Data</a></li>
+        <li><a href="#methodology"><span class="toc-num" aria-hidden="true">3</span>Methodology</a></li>
+        <li><a href="#results"><span class="toc-num" aria-hidden="true">4</span>Results</a></li>
+        <li><a href="#interpretation"><span class="toc-num" aria-hidden="true">5</span>Interpretation</a></li>
+        <li><a href="#limitations"><span class="toc-num" aria-hidden="true">6</span>Limitations and Honest Framing</a></li>
+        <li><a href="#recommendations"><span class="toc-num" aria-hidden="true">7</span>Ranked Recommendations</a></li>
+        <li><a href="#reproducibility"><span class="toc-num" aria-hidden="true">8</span>Reproducibility</a></li>
+        <li><a href="#acknowledgments"><span class="toc-num" aria-hidden="true">9</span>Acknowledgments and Data Credit</a></li>
+      </ol>
+    </nav>
+
+    <main id="main">
+
+      <section id="abstract" class="abstract" aria-labelledby="abstract-heading">
+        <h2 id="abstract-heading">Abstract</h2>
+        <p>This project asks whether observable search, content and freshness signals can help a content team decide which pages to review first when review capacity is limited. The executed analysis uses the FlyRank anonymized starter dataset of 30,000 content pages and 44 source columns covering 32 pseudonymized clients, with the larger warehouse release used to verify the data contract. The task was framed as binary classification on an observed decline label and compared against a transparent staleness and visibility baseline under an 80/20 split grouped by client, and a leakage audit found the label to be exactly reconstructible from two columns in the first feature set, which were removed along with four related columns before the reported evaluation. On the same held out test rows the corrected model reached an Average Precision of 0.596008, ROC AUC of 0.594877 and Precision@50 of 0.70, against 0.489069, 0.506511 and 0.30 for the baseline, measured against a test set positive rate of 51.1 percent. The output is measured and directional decision support for prioritizing human content review, not a causal explanation of search performance and not a prediction of Google's ranking system.</p>
+      </section>
+
+      <section id="introduction" aria-labelledby="introduction-heading">
+        <h2 id="introduction-heading"><span class="sec-num">1.</span>Introduction</h2>
+
+        <p>The decision supported by this project is which content pages a content team should review first.</p>
+
+        <p>A content team may have many pages but limited time. A ranked list can help the team spend its review time on pages that appear more relevant to the defined decline problem. For the executed starter dataset, one row represents one content page. The output is a score for each page, and pages can then be ranked from higher score to lower score.</p>
+
+        <p>A human reviewer uses the ranked queue to decide whether a page should be refreshed, protected and refreshed carefully, reviewed for click through rate, reviewed for engagement, expanded or monitored. The ranking decides what is looked at first. The reviewer decides what happens to the page.</p>
+
+        <p>The research question is:</p>
+
+        <blockquote>
+          <p>Can observable search, content and freshness signals help a content team rank pages so that limited review time is focused on pages associated with an observed declining trend?</p>
+        </blockquote>
+
+        <h3>Cost of a wrong call</h3>
+
+        <p>A false positive wastes editorial time on a page that does not need attention. A false negative causes a page that deserves review to be missed. There is also a risk of damaging a useful page if a recommendation is acted on without human review, which is why the output is designed as a queue rather than an instruction.</p>
+
+        <p>Machine learning is useful here because a simple rule identifies obvious cases, while many pages carry several signals at once. The model provides a way to combine multiple measurable signals into one ranking score. It is used to prioritize human review rather than to replace human judgement.</p>
+      </section>
+
+      <section id="data" aria-labelledby="data-heading">
+        <h2 id="data-heading"><span class="sec-num">2.</span>Data</h2>
+
+        <h3>Release used</h3>
+
+        <p>The executed modeling work uses the FlyRank anonymized starter dataset: 30,000 content pages, 44 source columns, 32 pseudonymized clients. Every model number reported in this paper comes from that dataset.</p>
+
+        <p>The internship also provides a larger warehouse release of approximately 79 million daily search performance rows. The warehouse was used to write and verify the data contract, not to train the reported model. No result in this paper is presented as a result trained on all 79 million rows.</p>
+
+        <h3>Tables and grain</h3>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 1.</strong> Documented warehouse tables.</caption>
+            <thead>
+              <tr><th scope="col">Table</th><th scope="col">Contents</th><th scope="col">Grain</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row"><code>dim_clients</code></th><td>Pseudonymized client dimension</td><td>One row per client</td></tr>
+              <tr><th scope="row"><code>dim_content</code></th><td>Content information and keyword context</td><td>One row per content item</td></tr>
+              <tr><th scope="row"><code>fact_content_daily_performance</code></th><td>Daily search and analytics performance</td><td>report date &times; client &times; content</td></tr>
+              <tr><th scope="row"><code>fact_content_query_90d</code></th><td>Query information over a fixed 90 day window</td><td>client &times; content &times; query hash</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Date windows</h3>
+
+        <p>The data contract was verified on March 2026 as the development window. March is a middle month in the warehouse history, so it was used to develop and check the contract rather than using the final month as development data.</p>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 2.</strong> Warehouse development window, verified by query.</caption>
+            <thead>
+              <tr><th scope="col">Check</th><th scope="col" class="num">Result</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Window</th><td class="num">2026-03-01 to 2026-03-31</td></tr>
+              <tr><th scope="row">Rows in window</th><td class="num">9,841,378</td></tr>
+              <tr><th scope="row">Distinct grain rows</th><td class="num">9,841,378</td></tr>
+              <tr><th scope="row">Duplicate grain combinations</th><td class="num">0</td></tr>
+              <tr><th scope="row">Rows with GA4 available</th><td class="num">413,966</td></tr>
+              <tr><th scope="row">Rows with GA4 unavailable</th><td class="num">6,408,671</td></tr>
+              <tr><th scope="row">Rows with GA4 state unknown</th><td class="num">3,018,741</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The row count equals the distinct grain count and no duplicate <code>report_date &times; client &times; content</code> combination was found, so the claimed grain holds for that window. Availability was checked with <code>IS TRUE</code>, which is why unavailable and unknown are reported as separate states rather than combined.</p>
+
+        <p>The starter dataset carries relative windows rather than calendar dates. It provides a 90 day observation window (<code>impressions_90d</code>, <code>clicks_90d</code>, <code>sessions_90d</code> and related columns) split into a most recent 30 day window and a previous 30 day window. Observed <code>content_age_days</code> ranges from 90 to 564 and <code>days_since_last_update</code> from 1 to 373. The anonymized file does not publish calendar dates for its slice, so no calendar window is claimed for the starter data.</p>
+
+        <h3>Target definition</h3>
+
+        <p>The target is <code>is_declining_label</code>, equal to 1 when <code>trend_direction</code> is <code>down</code> and 0 otherwise. The starter dataset contains 16,262 declining rows and 13,738 non declining rows, an overall positive rate of approximately 54.2 percent.</p>
+
+        <p>This base rate matters when reading Precision@50. A high precision score should be read next to the class distribution and the discrimination metrics, not on its own.</p>
+
+        <h3>What was excluded, and why</h3>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 3.</strong> Fields deliberately excluded from the feature set.</caption>
+            <thead>
+              <tr><th scope="col">Field</th><th scope="col">Reason for exclusion</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row"><code>trend_direction</code></th><td>Directly defines the target</td></tr>
+              <tr><th scope="row"><code>trend_pct</code></th><td>Derived from the same trend information and can encode the outcome</td></tr>
+              <tr><th scope="row"><code>is_declining_label</code></th><td>The target itself</td></tr>
+              <tr><th scope="row"><code>content_id</code></th><td>A pseudonymous identifier, not a predictive signal</td></tr>
+              <tr><th scope="row"><code>client_id</code></th><td>Excluded as a predictive feature, retained only as the grouping key for validation</td></tr>
+              <tr><th scope="row"><code>impressions_last_30d</code><br><code>impressions_prev_30d</code></th><td>The two columns the label is computed from. Removed after the audit described in Section 3</td></tr>
+              <tr><th scope="row"><code>clicks_last_30d</code><br><code>clicks_prev_30d</code><br><code>sessions_last_30d</code><br><code>sessions_prev_30d</code></th><td>Same two windows measured on clicks and sessions. Their ratio tracks the impression ratio closely enough to approximate the label</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The first five exclusions were made at the start of the project. The last six were made late, after a leakage audit showed that excluding <code>trend_pct</code> by name had not excluded the information it carries. Section 3 sets out how that was found and what it cost.</p>
+
+        <p>Future outcome information must also be excluded whenever it overlaps the outcome period. This constraint applies to any future work on the warehouse, where a feature window and an outcome window can easily overlap.</p>
+
+        <h3>Public safety</h3>
+
+        <p>The project uses anonymized data throughout. No client names, private domains, private URLs or private search queries appear in this paper, in the notebooks, or in any exported artifact. Client and content identifiers appear only in pseudonymized hashed form and are never used as model inputs.</p>
+      </section>
+
+      <section id="methodology" aria-labelledby="methodology-heading">
+        <h2 id="methodology-heading"><span class="sec-num">3.</span>Methodology</h2>
+
+        <h3>Assumptions</h3>
+
+        <ul>
+          <li>The observed decline label is a usable proxy for a page being worth a reviewer's attention. It is not a measure of future business value.</li>
+          <li>The signals used are observable before the review decision is made.</li>
+          <li>Missingness is systematic rather than random. The data dictionary states that a missing GA4 measurement does not mean zero engagement, so missing values are imputed rather than zero filled.</li>
+          <li>The data is observational, so no part of this design can establish causation.</li>
+        </ul>
+
+        <h3>Label definition</h3>
+
+        <p>A page is labelled positive when its documented <code>trend_direction</code> is <code>down</code> within the starter dataset's observation window.</p>
+
+        <h3>Baseline</h3>
+
+        <p>The Week 4 baseline is a transparent rule based score, written before any model was trained. A page is prioritized for refresh review when it is both stale, meaning at least 180 days since the last update, and visible, meaning at least 500 search impressions in the 90 day window. The score combines staleness and visibility points so that older and more visible pages rank higher.</p>
+
+        <p>The baseline emits the reason code <code>stale_visible_page</code> and the action <code>REVIEW_REFRESH</code>. It uses no label field and no future window data, and it is scored on exactly the same held out test rows as the model, which is what makes the comparison fair.</p>
+
+        <h3>Features</h3>
+
+        <p>The first feature vector held 26 features: 23 numeric and 3 categorical. The leakage audit below removed six of them. The final vector holds 20 features: 17 numeric and 3 categorical.</p>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 4.</strong> Final feature set.</caption>
+            <thead>
+              <tr><th scope="col">Group</th><th scope="col">Features</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Search performance (8)</th>
+                <td><code>impressions_90d</code>, <code>clicks_90d</code>, <code>sessions_90d</code>, <code>users_90d</code>, <code>engaged_sessions_90d</code>, <code>ai_sessions_90d</code>, <code>days_with_impressions</code>, <code>days_with_sessions</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Recent activity (6)</th>
+                <td><em>Removed by the leakage audit.</em> <code>impressions_last_30d</code>, <code>clicks_last_30d</code>, <code>sessions_last_30d</code>, <code>impressions_prev_30d</code>, <code>clicks_prev_30d</code>, <code>sessions_prev_30d</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Content information (4)</th>
+                <td><code>word_count</code>, <code>char_count</code>, <code>content_age_days</code>, <code>days_since_last_update</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Derived search signals (5)</th>
+                <td><code>ctr</code>, <code>avg_position</code>, <code>engagement_rate</code>, <code>scroll_rate</code>, <code>ai_traffic_pct</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Categorical context (3)</th>
+                <td><code>content_type</code>, <code>main_intent</code>, <code>competition_level</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Numeric missing values are median imputed. Categorical missing values are filled with an explicit <code>unknown</code> category rather than dropped. The largest single gap is <code>word_count</code>, missing on 7,699 of 30,000 rows, which is one reason content length is treated as weak evidence in the recommendations.</p>
+
+        <h3>Model choice</h3>
+
+        <p>Logistic Regression was selected for the main model. The target has two possible outcomes, the model produces a probability that can be used directly to rank pages, and its coefficients are relatively easy to interpret compared with more complex models. For a ranking that a reviewer has to trust and question, interpretability was weighted above raw fit.</p>
+
+        <h3>Validation design</h3>
+
+        <p>An 80 percent training and 20 percent test split, grouped by client, with random seed 42.</p>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 5.</strong> Client grouped split.</caption>
+            <thead>
+              <tr><th scope="col">Quantity</th><th scope="col" class="num">Value</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Training rows</th><td class="num">23,837</td></tr>
+              <tr><th scope="row">Test rows</th><td class="num">6,163</td></tr>
+              <tr><th scope="row">Training clients</th><td class="num">25</td></tr>
+              <tr><th scope="row">Test clients</th><td class="num">7</td></tr>
+              <tr><th scope="row">Client overlap</th><td class="num">0</td></tr>
+              <tr><th scope="row">Training positive rate</th><td class="num">55.0%</td></tr>
+              <tr><th scope="row">Test positive rate</th><td class="num">51.1%</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Grouping by client suits this question because the intended use is ranking pages for clients whose history the model has not memorized. Test clients are absent from training entirely, which is more conservative than letting pages from the same client sit on both sides of the split.</p>
+
+        <h3>Leakage and privacy checks</h3>
+
+        <p>The leakage hunt was run three times. The first two passes, in Week 3 and Week 6, checked whether any forbidden column appeared in the feature list by name. Both reported zero forbidden fields. The third pass, run while preparing this paper, tested something different and did not pass.</p>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 6.</strong> Leakage and privacy audit, all three passes.</caption>
+            <thead>
+              <tr><th scope="col">Check</th><th scope="col">Result</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Forbidden label derived fields present by name</th><td>0 found, PASS</td></tr>
+              <tr><th scope="row">Target used as a feature</th><td>No, PASS</td></tr>
+              <tr><th scope="row"><code>trend_direction</code> or <code>trend_pct</code> used as features</th><td>No, PASS</td></tr>
+              <tr><th scope="row">Suspicious feature names</th><td>None, PASS</td></tr>
+              <tr><th scope="row">Identifier fields used as features</th><td>None, PASS</td></tr>
+              <tr><th scope="row">Any single feature with standalone AUC above 0.95</th><td>None, PASS</td></tr>
+              <tr><th scope="row">Label reconstructible from the feature set</th><td>Exactly, on all 30,000 rows. <strong>FAIL</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The name based checks cannot detect a label rebuilt from columns that are individually permitted. The data dictionary defines the label as a comparison of two windows:</p>
+
+<pre><code>trend_pct       = (impressions_last_30d - impressions_prev_30d)
+                  / impressions_prev_30d * 100
+trend_direction = "down" when trend_pct &lt; -20
+label           = 1 when trend_direction == "down"</code></pre>
+
+        <p>Both <code>impressions_last_30d</code> and <code>impressions_prev_30d</code> were in the feature set. Excluding <code>trend_pct</code> by name while supplying the two columns it is computed from leaves the label fully available to the model. Applying the documented formula directly to those two features reproduces the label on every row:</p>
+
+<pre><code>documented rule vs label agreement: 1.000000
+positives predicted: 16,262    actual: 16,262</code></pre>
+
+        <p>The clicks and sessions versions of the same two windows were removed as well. They are not the label by definition, but their ratio tracks the impression ratio closely enough to approximate it. Section 4 reports what the removal cost.</p>
+
+        <p>Two checks were added so that this class of problem is caught by the audit rather than by a reader. The first applies each documented label formula to the surviving feature set and measures agreement. The second trains a random forest probe on the features alone and reports its cross validated accuracy: a probe that reaches near perfect accuracy on a task where a rule baseline sits at chance is reading the answer rather than learning it. On the 23 numeric features the probe reached 0.9122; on the 17 that remain it reaches 0.6994, against a base rate of 0.542.</p>
+
+        <p>One risk is still not closed. The surviving 90 day aggregates and the rates derived from them cover a window that contains the 30 days the label is measured over, so they are contemporaneous with the outcome rather than prior to it. This is consistent with what the paper claims, which is association with an observed label rather than prediction of a future one, but it is not the same as a clean forecasting setup. Section 6 states the consequence, and any future window variable that overlaps the outcome period must be excluded when this work moves to the warehouse.</p>
+      </section>
+
+      <section id="results" aria-labelledby="results-heading">
+        <h2 id="results-heading"><span class="sec-num">4.</span>Results</h2>
+
+        <p>The model and the baseline were scored on the same held out test rows, with the same metrics, under the same client grouped split. The model reported here is the corrected one, trained on the 20 features that survived the leakage audit.</p>
+
+        <figure class="fig">
+          <figcaption><strong>Figure 1.</strong> Logistic Regression compared with the Week 4 baseline on the same held out test rows.</figcaption>
+          <div class="legend">
+            <span><span class="swatch model"></span>Logistic Regression, 20 features</span>
+            <span><span class="swatch base"></span>Week 4 baseline</span>
+            <span><span class="swatch ref"></span>Test set positive rate, 51.1%</span>
+          </div>
+          <div class="chart">
+            <div class="row">
+              <span class="lbl">Average Precision</span>
+              <div class="track"><div class="bar" style="width:59.6%"></div></div>
+              <span class="val">0.5960</span>
+            </div>
+            <div class="row sub">
+              <span class="lbl">baseline</span>
+              <div class="track"><div class="bar muted" style="width:48.9%"></div></div>
+              <span class="val">0.4891</span>
+            </div>
+            <div class="row">
+              <span class="lbl">ROC AUC</span>
+              <div class="track"><div class="bar" style="width:59.5%"></div></div>
+              <span class="val">0.5949</span>
+            </div>
+            <div class="row sub">
+              <span class="lbl">baseline</span>
+              <div class="track"><div class="bar muted" style="width:50.7%"></div></div>
+              <span class="val">0.5065</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Precision@50</span>
+              <div class="track ref" style="--ref:51.1%"><div class="bar" style="width:70%"></div></div>
+              <span class="val">0.70</span>
+            </div>
+            <div class="row sub">
+              <span class="lbl">baseline</span>
+              <div class="track ref" style="--ref:51.1%"><div class="bar muted" style="width:30%"></div></div>
+              <span class="val">0.30</span>
+            </div>
+          </div>
+          <p class="fig-note">All bars use a 0 to 1 scale. The dashed line marks the test set positive rate of 51.1 percent, which is the level a randomly filled top 50 queue would be expected to reach.</p>
+        </figure>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 7.</strong> Baseline and Logistic Regression on the same held out test rows.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Metric</th>
+                <th scope="col" class="num">Baseline</th>
+                <th scope="col" class="num">Logistic Regression</th>
+                <th scope="col" class="num">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Average Precision</th>
+                <td class="num">0.489069</td>
+                <td class="num win">0.596008</td>
+                <td class="num">+0.106939</td>
+              </tr>
+              <tr>
+                <th scope="row">ROC AUC</th>
+                <td class="num">0.506511</td>
+                <td class="num win">0.594877</td>
+                <td class="num">+0.088366</td>
+              </tr>
+              <tr>
+                <th scope="row">Precision@50</th>
+                <td class="num">0.30</td>
+                <td class="num win">0.70</td>
+                <td class="num">+0.40</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row">Test set positive rate</th>
+                <td class="num" colspan="3">51.1% across 6,163 test rows and 7 held out clients</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <p>The model ranks better than the baseline on all three metrics, and the margin is modest. Average Precision rises by about a tenth. ROC AUC of 0.594877 describes a ranking with real but limited discrimination. Precision@50 of 0.70 sits 0.19 above the 51.1 percent test base rate, so the top of the queue is better than an arbitrary selection without being close to reliable.</p>
+
+        <p>The baseline's ROC AUC of 0.506511 is close to 0.5, the level expected from a ranking with no discrimination. On these held out clients the staleness and visibility rule ordered pages barely better than chance.</p>
+
+        <h3>The result before the leak was removed</h3>
+
+        <p>This evaluation was first run on the 26 feature set described in Section 3, and produced much stronger numbers. They are reported here because the difference between them is the finding, not a discarded draft.</p>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 8.</strong> The same evaluation before and after the six label derived features were removed.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Metric</th>
+                <th scope="col" class="num">26 features</th>
+                <th scope="col" class="num">20 features</th>
+                <th scope="col" class="num">Baseline</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Average Precision</th>
+                <td class="num">0.871535</td>
+                <td class="num">0.596008</td>
+                <td class="num">0.489069</td>
+              </tr>
+              <tr>
+                <th scope="row">ROC AUC</th>
+                <td class="num">0.849583</td>
+                <td class="num">0.594877</td>
+                <td class="num">0.506511</td>
+              </tr>
+              <tr>
+                <th scope="row">Precision@50</th>
+                <td class="num">1.00</td>
+                <td class="num">0.70</td>
+                <td class="num">0.30</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <figure class="fig">
+          <figcaption><strong>Figure 2.</strong> Average Precision before and after removing the label derived features, against the baseline.</figcaption>
+          <div class="chart">
+            <div class="row">
+              <span class="lbl">26 features<span class="n">label reconstructible</span></span>
+              <div class="track"><div class="bar muted" style="width:87.2%"></div></div>
+              <span class="val">0.8715</span>
+            </div>
+            <div class="row">
+              <span class="lbl">20 features<span class="n">reported result</span></span>
+              <div class="track"><div class="bar" style="width:59.6%"></div></div>
+              <span class="val">0.5960</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Baseline<span class="n">same test rows</span></span>
+              <div class="track"><div class="bar muted" style="width:48.9%"></div></div>
+              <span class="val">0.4891</span>
+            </div>
+          </div>
+          <p class="fig-note">About seven tenths of the apparent improvement over the baseline came from six columns that encode the label.</p>
+        </figure>
+
+        <p>An Average Precision of 0.8715 and a Precision@50 of 1.00 were the original headline results of this project. They were produced by a model that had been given the two columns the label is computed from. Of the 0.382 gap between the baseline and the 26 feature model, 0.276 disappears when those columns are removed. The remaining 0.107 is what the observable signals contribute.</p>
+
+        <p>Precision@50 of 1.00 was the clearest warning sign in hindsight. A perfect top 50 against a 51.1 percent base rate, produced by a linear model, next to a baseline sitting at chance, is a pattern that should prompt an audit rather than a conclusion.</p>
+
+        <h3>Effect of the validation design</h3>
+
+        <p>The Week 6 audit re-ran the model under an ordinary row based split to measure what the grouped split costs. Both feature sets are shown, because the leak changed the size of the gap.</p>
+
+        <figure class="fig">
+          <figcaption><strong>Figure 3.</strong> Average Precision under two validation designs, for both feature sets.</figcaption>
+          <div class="legend">
+            <span><span class="swatch model"></span>20 features, leak removed</span>
+            <span><span class="swatch base"></span>26 features, original</span>
+          </div>
+          <div class="chart">
+            <div class="row">
+              <span class="lbl">Row based split</span>
+              <div class="track"><div class="bar" style="width:70.2%"></div></div>
+              <span class="val">0.7017</span>
+            </div>
+            <div class="row sub">
+              <span class="lbl">26 features</span>
+              <div class="track"><div class="bar muted" style="width:93.7%"></div></div>
+              <span class="val">0.9365</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Client grouped</span>
+              <div class="track"><div class="bar" style="width:59.6%"></div></div>
+              <span class="val">0.5960</span>
+            </div>
+            <div class="row sub">
+              <span class="lbl">26 features</span>
+              <div class="track"><div class="bar muted" style="width:87.2%"></div></div>
+              <span class="val">0.8715</span>
+            </div>
+          </div>
+          <p class="fig-note">Removing client overlap costs 0.106 Average Precision on the corrected feature set, against 0.065 on the original. The client grouped number is the one reported throughout this paper.</p>
+        </figure>
+
+        <p>Performance drops when client overlap is removed, which is the expected direction. Part of the row based result comes from the model recognizing clients it has already seen. The gap is larger on the corrected feature set than on the original one. Once the model can no longer read the label directly, more of what remains is client specific pattern rather than general signal.</p>
+
+        <h3>Error analysis</h3>
+
+        <p>The ranking was inspected directly, because a metric table does not show what the mistakes look like.</p>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 9.</strong> Precision at several queue depths, corrected model.</caption>
+            <thead>
+              <tr><th scope="col">Queue depth</th><th scope="col" class="num">Precision</th><th scope="col" class="num">Lift over base rate</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Top 20</th><td class="num">0.80</td><td class="num">+0.29</td></tr>
+              <tr><th scope="row">Top 50</th><td class="num">0.70</td><td class="num">+0.19</td></tr>
+              <tr><th scope="row">Top 100</th><td class="num">0.67</td><td class="num">+0.16</td></tr>
+              <tr><th scope="row">Top 500</th><td class="num">0.67</td><td class="num">+0.16</td></tr>
+            </tbody>
+            <tfoot>
+              <tr><th scope="row">Test base rate</th><td class="num">0.511</td><td class="num"></td></tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <p>Precision decays with depth and then flattens, which is the shape a working ranking produces. The practical reading is that the first 20 to 50 rows are worth a reviewer's time and the advantage thins below that.</p>
+
+        <p>The top 50 draws from only 2 of the 7 held out clients, and all ten of the highest scoring false positives come from one client. The ranking concentrates on whichever clients happen to match the pattern it learned, so a per client cap on the review queue would be sensible in practice.</p>
+
+        <p>Seven of those ten false positives are labelled <code>up</code> rather than <code>stable</code>. Their median is 759 impressions across 82.5 days with impressions, so the model is placing steady, well established pages near the top regardless of which direction they moved. It is responding to activity, not to direction.</p>
+
+        <p>The lowest scoring false negatives are low volume pages, with a median of 69 impressions and zero clicks over 90 days. At that volume the rate based signals are computed on almost nothing and are unstable by construction. One page in that group had 309,192 impressions, so volume alone does not explain every miss.</p>
+      </section>
+
+      <section id="interpretation" aria-labelledby="interpretation-heading">
+        <h2 id="interpretation-heading"><span class="sec-num">5.</span>Interpretation</h2>
+
+        <p>Once the label derived columns were removed, the corrected model found a modest amount of usable information in combinations of search performance, content and engagement signals. The Week 4 signal audit shows why the remaining signal is weak: tested one at a time, each candidate signal returned a MIXED verdict.</p>
+
+        <figure class="fig">
+          <figcaption><strong>Figure 4.</strong> Observed decline rate by days since last update.</figcaption>
+          <div class="legend">
+            <span><span class="swatch ref"></span>Overall decline rate, 54.2%</span>
+          </div>
+          <div class="chart">
+            <div class="row">
+              <span class="lbl">0&ndash;30 days<span class="n">n = 20,480</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:51.14%"></div></div>
+              <span class="val">51.1%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">31&ndash;90 days<span class="n">n = 175</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:58.86%"></div></div>
+              <span class="val">58.9%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">91&ndash;180 days<span class="n">n = 9,171</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:61.11%"></div></div>
+              <span class="val">61.1%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">181&ndash;365 days<span class="n">n = 169</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar muted" style="width:46.75%"></div></div>
+              <span class="val">46.7%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">365+ days<span class="n">n = 5</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar muted" style="width:60.00%"></div></div>
+              <span class="val">60.0%</span>
+            </div>
+          </div>
+          <p class="fig-note">Group sizes are very uneven. The two greyed groups hold 169 and 5 pages, so their rates carry little weight. Verdict: MIXED.</p>
+        </figure>
+
+        <div class="note">
+          <span class="note-label">Note on the freshness result</span>
+          <p>The flag linked freshness test was recorded as CONFIRMED on the comparison between the newest group at 51.14 percent and the oldest group at 60.00 percent. That oldest group contains 5 pages. The 181 to 365 day group, which holds 169 pages, declines less often at 46.7 percent than the newest group does.</p>
+          <p>The defensible reading is narrower than the verdict label suggests. The well populated middle groups, 31 to 90 days and 91 to 180 days, do show a higher observed decline rate than the newest group. The sparse tail groups should not be used as evidence in either direction.</p>
+        </div>
+
+        <figure class="fig">
+          <figcaption><strong>Figure 5.</strong> Observed decline rate by search impression quartile.</figcaption>
+          <div class="legend">
+            <span><span class="swatch ref"></span>Overall decline rate, 54.2%</span>
+          </div>
+          <div class="chart">
+            <div class="row">
+              <span class="lbl">Lowest<span class="n">n = 7,500</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:37.60%"></div></div>
+              <span class="val">37.6%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Low<span class="n">n = 7,500</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:60.47%"></div></div>
+              <span class="val">60.5%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">High<span class="n">n = 7,500</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:62.56%"></div></div>
+              <span class="val">62.6%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Highest<span class="n">n = 7,500</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:56.20%"></div></div>
+              <span class="val">56.2%</span>
+            </div>
+          </div>
+          <p class="fig-note">The relationship is not monotonic. Decline rate rises from the lowest quartile, peaks in the high quartile, then falls again in the highest. Verdict: MIXED.</p>
+        </figure>
+
+        <figure class="fig">
+          <figcaption><strong>Figure 6.</strong> Observed decline rate by average search position.</figcaption>
+          <div class="legend">
+            <span><span class="swatch ref"></span>Overall decline rate, 54.2%</span>
+          </div>
+          <div class="chart">
+            <div class="row">
+              <span class="lbl">Top 3<span class="n">n = 2,346</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:24.55%"></div></div>
+              <span class="val">24.6%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Page 1<span class="n">n = 11,842</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:56.94%"></div></div>
+              <span class="val">56.9%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Striking distance<span class="n">n = 7,273</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:60.95%"></div></div>
+              <span class="val">61.0%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Page 3&ndash;5<span class="n">n = 7,225</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:56.18%"></div></div>
+              <span class="val">56.2%</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Deep<span class="n">n = 1,314</span></span>
+              <div class="track ref" style="--ref:54.2%"><div class="bar" style="width:34.32%"></div></div>
+              <span class="val">34.3%</span>
+            </div>
+          </div>
+          <p class="fig-note">Decline is concentrated in the middle of the position range and is markedly lower at both extremes. Verdict: MIXED.</p>
+        </figure>
+
+        <h3>What the audit means</h3>
+
+        <p>No single signal was strong enough to serve as a complete rule on its own, and two of the three are not monotonic. The baseline commits to older and more visible as a single direction, while the observed decline rate does not follow that direction cleanly at either end of the range. That is why a combining model ranks better than a two signal rule, and also why the margin is small: there is not much clean signal for it to combine.</p>
+
+        <p>The model's advantage is a ranking advantage on this population. It is not evidence that any one of these signals is a reliable standalone flag.</p>
+
+        <h3>What the corrected model leans on</h3>
+
+        <p>The largest standardized coefficients in the corrected model are shown below. A positive value pushes a page toward the decline label.</p>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 10.</strong> Largest standardized Logistic Regression coefficients, 20 feature model.</caption>
+            <thead>
+              <tr><th scope="col">Feature</th><th scope="col" class="num">Coefficient</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row"><code>days_with_impressions</code></th><td class="num">+0.607</td></tr>
+              <tr><th scope="row"><code>days_with_sessions</code></th><td class="num">&minus;0.430</td></tr>
+              <tr><th scope="row"><code>content_age_days</code></th><td class="num">&minus;0.410</td></tr>
+              <tr><th scope="row"><code>sessions_90d</code></th><td class="num">+0.409</td></tr>
+              <tr><th scope="row"><code>content_type</code> = feedly article</th><td class="num">&minus;0.383</td></tr>
+              <tr><th scope="row"><code>content_type</code> = keyword article</th><td class="num">+0.342</td></tr>
+              <tr><th scope="row"><code>main_intent</code> = navigational</th><td class="num">&minus;0.339</td></tr>
+              <tr><th scope="row"><code>users_90d</code></th><td class="num">&minus;0.336</td></tr>
+              <tr><th scope="row"><code>word_count</code></th><td class="num">+0.258</td></tr>
+              <tr><th scope="row"><code>char_count</code></th><td class="num">&minus;0.221</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The pattern is coverage rather than freshness. The strongest term is the number of days a page recorded impressions, followed by the number of days it recorded sessions in the opposite direction. Pages that appear in search on many days but convert that into sessions on few days are pushed toward the decline label. This is consistent with the error analysis, where the highest scoring false positives were steady, well established pages that happened to be moving up rather than down.</p>
+
+        <p>Notably, <code>days_since_last_update</code> does not appear among the largest coefficients, even though staleness is the premise of the refresh lane. Two content size measures, <code>word_count</code> and <code>char_count</code>, carry opposite signs, which usually indicates the model is using their difference rather than either one meaningfully. Neither should be read as a finding about content length.</p>
+
+        <h3>Negative and unexpected results</h3>
+
+        <ul>
+          <li>The project's headline result was an artifact. Average Precision of 0.8715 and Precision@50 of 1.00 came from features that encode the label, and both fell substantially once those features were removed.</li>
+          <li>The transparent baseline scored ROC AUC 0.506511, close to no discrimination on the held out clients. A rule that sounds reasonable did not order these pages usefully.</li>
+          <li>Pages ranked in the top 3 search positions decline least often, at 24.6 percent against the 54.2 percent overall rate. Visibility and decline are not the same thing.</li>
+          <li>The freshness signal that motivates the refresh lane came back MIXED rather than clean once group sizes were taken into account, and freshness does not appear among the corrected model's strongest coefficients either.</li>
+        </ul>
+
+        <h3>What this does and does not tell us</h3>
+
+        <p>The model can help rank pages associated with the observed decline label. It does not tell us why a page declined, it does not tell us that a content change will improve performance, and it does not predict Google's ranking algorithm. The result is a prioritization signal.</p>
+      </section>
+
+      <section id="limitations" aria-labelledby="limitations-heading">
+        <h2 id="limitations-heading"><span class="sec-num">6.</span>Limitations and Honest Framing</h2>
+
+        <p>This study has several important limitations.</p>
+
+        <ul>
+          <li>The target is an observed decline label, not a direct future outcome. It records that a page's documented trend was down in the observation window. It does not say the page will underperform in a later period.</li>
+          <li>The data is observational, so the project cannot prove that a content change causes search performance to improve.</li>
+          <li>Seasonality, demand, competition, consolidation and cannibalization can all affect search performance and can resemble content decline.</li>
+          <li>Low traffic volume makes percentage based signals unstable, which appears directly in the false negative analysis.</li>
+          <li>Client history is not evenly distributed, and Search Console and Analytics availability differ across clients and time periods. In the verified March 2026 window, GA4 was available on 413,966 of 9,841,378 rows.</li>
+          <li><code>word_count</code> is missing on 7,699 of 30,000 starter rows, so content length evidence is thinner than the feature list suggests.</li>
+          <li>The freshness verdict rests partly on groups of 169 and 5 pages, as described in Section 5.</li>
+          <li>Model performance may change when the population or time period changes. Precision@50 of 0.70 is a measurement on 50 pages drawn from 7 held out clients, not a guarantee.</li>
+          <li>The model was evaluated once under this design. There is no sealed or pre registered holdout, so the result is a validation estimate rather than a blind single shot evaluation.</li>
+          <li>The features are contemporaneous with the label rather than prior to it. The surviving 90 day aggregates and the rates derived from them cover a window that contains the 30 days the label is measured over, so this is an association study and not a forecast. A genuine prediction task would use a past window for features and a later window for the outcome.</li>
+          <li>The corrected result is modest. ROC AUC of 0.594877 is much closer to chance than to a dependable ranking, and precision falls to 0.67 by the hundredth row. The queue is useful at the top and thin below it.</li>
+          <li>The first two leakage audits passed while the label was fully reconstructible from the feature set. Audits that check column names cannot certify a feature set, and the checks added in Section 3 should be treated as a minimum rather than a guarantee that nothing else remains.</li>
+        </ul>
+
+        <p>The appropriate claim is:</p>
+
+        <blockquote>
+          <p>In this dataset, Logistic Regression showed measured and directional ability to rank pages associated with the observed decline label. The output is intended as decision support for prioritizing human content review. It is not a prediction of Google's ranking system and it does not establish why a page declined.</p>
+        </blockquote>
+      </section>
+
+      <section id="recommendations" aria-labelledby="recommendations-heading">
+        <h2 id="recommendations-heading"><span class="sec-num">7.</span>Ranked Recommendations</h2>
+
+        <p>The final output is a human reviewed action queue covering all 30,000 pages. Each row carries a rank, a recommended action, the reason codes behind it, and a confidence level.</p>
+
+        <div class="note">
+          <span class="note-label">What ranks this queue</span>
+          <p>The Week 7 queue is ordered by a transparent observable signal action score, weighted 40 percent log scaled visibility, 30 percent freshness, 25 percent search position and 5 percent content depth. It is not ordered by the Logistic Regression probability.</p>
+          <p>The queue is the reviewer facing artifact, built from observable signals in a form a person can audit line by line. Section 4 measures how much ranking information signals of this kind carry once the label derived columns are removed, and the answer is a modest amount. Connecting the corrected model score to the queue ranking is the next step and has not been done yet. On the evidence in Section 4 it should be expected to help at the top of the queue and little below it.</p>
+        </div>
+
+        <h3>The actions</h3>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 11.</strong> Recommended actions, what the reviewer checks, and the reason code that triggers each one.</caption>
+            <thead>
+              <tr><th scope="col">Action</th><th scope="col">What the reviewer checks</th><th scope="col">Triggered by</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Refresh</th>
+                <td>Whether the information is outdated, incomplete or no longer aligned with the intended search need, and whether seasonality could explain the movement.</td>
+                <td><code>stale_visible_page</code>, <code>declining_with_demand</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Protect and refresh</th>
+                <td>Older pages that already hold useful visibility. Changes must be careful, because unnecessary edits may damage coverage that is currently working.</td>
+                <td><code>page_one_decay_risk</code></td>
+              </tr>
+              <tr>
+                <th scope="row">CTR review</th>
+                <td>Search result presentation, title and description, and whether the page matches the intent behind the query.</td>
+                <td><code>low_ctr_visible_page</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Engagement review</th>
+                <td>Readability, structure and headings, and whether the content answers the visitor's need quickly.</td>
+                <td><code>low_engagement_visible_page</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Expand</th>
+                <td>Whether useful information is genuinely missing. Expansion needs a clear content reason, and words should never be added to raise a word count.</td>
+                <td><code>thin_visible_page</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Monitor</th>
+                <td>Nothing yet. The evidence is weak or ambiguous and no action is justified.</td>
+                <td>default when no reason code fires</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 12.</strong> Reason codes and the observable conditions behind them.</caption>
+            <thead>
+              <tr><th scope="col">Reason code</th><th scope="col">Fires when</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row"><code>stale_visible_page</code></th><td>180 or more days since update, with 500 or more impressions in 90 days</td></tr>
+              <tr><th scope="row"><code>declining_with_demand</code></th><td>Observed downward trend with at least 100 impressions</td></tr>
+              <tr><th scope="row"><code>thin_visible_page</code></th><td>Under 1,200 words with at least 250 impressions</td></tr>
+              <tr><th scope="row"><code>page_one_decay_risk</code></th><td>Average position 10 or better on a page at least 180 days old</td></tr>
+              <tr><th scope="row"><code>low_ctr_visible_page</code></th><td>500 or more impressions, position 20 or better, CTR under 0.5 percent</td></tr>
+              <tr><th scope="row"><code>low_engagement_visible_page</code></th><td>30 or more sessions with engagement rate or scroll rate under 30 percent</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>What the queue contains</h3>
+
+        <figure class="fig">
+          <figcaption><strong>Figure 7.</strong> Week 7 action queue across 30,000 pages.</figcaption>
+          <div class="chart">
+            <div class="row">
+              <span class="lbl">Refresh</span>
+              <div class="track"><div class="bar" style="width:100%"></div></div>
+              <span class="val">10,326</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Monitor</span>
+              <div class="track"><div class="bar muted" style="width:86.9%"></div></div>
+              <span class="val">8,976</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Protect and refresh</span>
+              <div class="track"><div class="bar" style="width:68.5%"></div></div>
+              <span class="val">7,076</span>
+            </div>
+            <div class="row">
+              <span class="lbl">CTR review</span>
+              <div class="track"><div class="bar" style="width:21.5%"></div></div>
+              <span class="val">2,220</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Engagement review</span>
+              <div class="track"><div class="bar" style="width:13.3%"></div></div>
+              <span class="val">1,374</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Expand</span>
+              <div class="track"><div class="bar" style="width:0.3%"></div></div>
+              <span class="val">28</span>
+            </div>
+          </div>
+          <p class="fig-note">Bars are scaled to the largest action. Roughly one page in three falls into Refresh and one in three into Monitor.</p>
+        </figure>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 13.</strong> Week 7 action queue composition.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Action</th>
+                <th scope="col" class="num">Pages</th>
+                <th scope="col" class="num">Share of queue</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Refresh</th><td class="num">10,326</td><td class="num">34.4%</td></tr>
+              <tr><th scope="row">Monitor</th><td class="num">8,976</td><td class="num">29.9%</td></tr>
+              <tr><th scope="row">Protect and refresh</th><td class="num">7,076</td><td class="num">23.6%</td></tr>
+              <tr><th scope="row">CTR review</th><td class="num">2,220</td><td class="num">7.4%</td></tr>
+              <tr><th scope="row">Engagement review</th><td class="num">1,374</td><td class="num">4.6%</td></tr>
+              <tr><th scope="row">Expand</th><td class="num">28</td><td class="num">0.1%</td></tr>
+            </tbody>
+            <tfoot>
+              <tr><th scope="row">Total</th><td class="num">30,000</td><td class="num">100%</td></tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <figure class="fig">
+          <figcaption><strong>Figure 8.</strong> Confidence levels across the queue.</figcaption>
+          <div class="chart">
+            <div class="row">
+              <span class="lbl">High</span>
+              <div class="track"><div class="bar" style="width:31.8%"></div></div>
+              <span class="val">4,771</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Medium</span>
+              <div class="track"><div class="bar" style="width:68.2%"></div></div>
+              <span class="val">10,229</span>
+            </div>
+            <div class="row">
+              <span class="lbl">Low</span>
+              <div class="track"><div class="bar muted" style="width:100%"></div></div>
+              <span class="val">15,000</span>
+            </div>
+          </div>
+          <p class="fig-note">High confidence requires a top quintile action score together with at least 500 impressions and 10 sessions. Half the queue is low confidence, which reflects that most pages do not carry enough observable evidence to justify an edit.</p>
+        </figure>
+
+        <h3>How a reviewer would use this</h3>
+
+        <ol>
+          <li>Work the high confidence Refresh and Protect and refresh rows first, where visibility, staleness and evidence overlap.</li>
+          <li>Read the reason codes before opening the page. They record what the score responded to.</li>
+          <li>Check the page against the reason. Is the information genuinely out of date, or did demand simply move?</li>
+          <li>Treat the largest and smallest traffic pages with extra care, following the error analysis in Section 4.</li>
+          <li>Leave low confidence rows alone unless there was already a human reason to look at them.</li>
+        </ol>
+
+        <h3>Human review requirements</h3>
+
+        <p>Every high ranked recommendation must be reviewed by a person before action. The reviewer should consider the actual page content, current information, search intent, current search result context, seasonality, traffic volume, possible competing pages, strategic importance, and whether the proposed change could damage existing performance.</p>
+
+        <p>The system must never automatically publish content, delete or prune pages, merge URLs, change canonical decisions, rewrite metadata or important pages without human review, claim that an edit will cause recovery, treat a model probability as a causal probability, or override an experienced reviewer only because a score is high.</p>
+
+        <p>The model ranks the work. A human decides what should happen.</p>
+
+        <h3>Confidence and monitoring</h3>
+
+        <p>Confidence in the ranking rests on the measured improvement over the baseline on the evaluated test set, and it stops at the edge of the evaluated population and validation design. The queue is decision support, not an instruction list.</p>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 14.</strong> Monitoring plan.</caption>
+            <thead>
+              <tr><th scope="col">Monitor</th><th scope="col">Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Precision@20</th><td>Quality of the first review candidates</td></tr>
+              <tr><th scope="row">Precision@50</th><td>Quality at practical review capacity</td></tr>
+              <tr><th scope="row">Average Precision</th><td>Overall ranking quality</td></tr>
+              <tr><th scope="row">Action distribution</th><td>Detect recommendation shifts</td></tr>
+              <tr><th scope="row">Reason code distribution</th><td>Detect changes in the reasoning mix</td></tr>
+              <tr><th scope="row">High confidence share</th><td>Detect confidence instability</td></tr>
+              <tr><th scope="row">Feature distributions</th><td>Detect data drift</td></tr>
+              <tr><th scope="row">Human review agreement</th><td>Check practical usefulness</td></tr>
+              <tr><th scope="row">Future window performance</th><td>Check performance against later outcomes</td></tr>
+              <tr><th scope="row">Label reconstruction probe</th><td>Re-run the Section 3 audit whenever the feature list or the label definition changes</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Revalidate or retrain when top K precision falls materially on new outcomes, when input distributions shift substantially, when the high confidence share moves sharply, when new content types or clients start to dominate the queue, when reviewers repeatedly reject top ranked rows, when the target definition changes, or when a proper future window outcome becomes available. These are practical triggers rather than validated thresholds.</p>
+      </section>
+
+      <section id="reproducibility" aria-labelledby="reproducibility-heading">
+        <h2 id="reproducibility-heading"><span class="sec-num">8.</span>Reproducibility</h2>
+
+        <h3>Settings</h3>
+
+        <ul>
+          <li>Random seed: <code>42</code>.</li>
+          <li>Validation design: 80 percent train and 20 percent test, grouped by <code>client_id</code>, with zero client overlap, using <code>GroupShuffleSplit</code>.</li>
+          <li>Both the baseline and Logistic Regression are scored on the same held out test rows.</li>
+          <li>Feature list: the 20 features in Table 4, with the six recent window columns removed. Supplying all 26 reproduces the pre correction numbers in Table 8.</li>
+          <li>Environment: <a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/requirements.txt"><code>requirements.txt</code></a> in the repository root. The notebooks also run in Colab, where each one fetches the anonymized starter CSV if it is not already present.</li>
+        </ul>
+
+        <h3>Re-running from a fresh clone</h3>
+
+<pre><code>git clone https://github.com/Nayab-khalid/FlyRank-AI-Internship.git
+cd FlyRank-AI-Internship
+python -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -r requirements.txt
+jupyter lab work/notebooks/</code></pre>
+
+        <p>Run the weekly notebooks in order, w01 through w07. The data contract, baseline, signal audit, split design and action queue reported in this paper come from those runs unchanged.</p>
+
+        <div class="note">
+          <span class="note-label">Which numbers came from where</span>
+          <p>The model results in Section 4 do not come from <code>w05_model.ipynb</code> as it currently stands in the repository. That notebook trains on all 26 features and produces the pre correction numbers shown in Table 8. The corrected numbers were produced by re-running the same pipeline, seed and split with the six recent window columns removed from <code>numeric_features</code>.</p>
+          <p>Everything else about the pipeline is unchanged: the same imputation, scaling, one hot encoding, <code>class_weight="balanced"</code> Logistic Regression, the same <code>GroupShuffleSplit</code> with seed 42, and the same recreation of the Week 4 baseline on the same test rows. Re-running the published notebook reproduces Table 8 exactly, which is how the correction was verified. The notebooks should be updated to the corrected feature list so that a fresh clone reproduces Section 4 directly.</p>
+        </div>
+
+        <div class="note">
+          <span class="note-label">Two pipelines in this repository</span>
+          <p><code>scripts/run_all.py</code> is the bundled starter pipeline shipped with the internship template. It writes its own <code>outputs/model_report.md</code> with different figures, selecting a random forest and reporting a lower Logistic Regression result on its own split.</p>
+          <p>The analysis in this paper is the one under <code>work/notebooks/</code>. Where the two disagree, this paper follows the notebooks, and the bundled report should not be read as a re-run of it.</p>
+        </div>
+
+        <h3>Notebooks</h3>
+
+        <div class="table-wrap">
+          <table>
+            <caption><strong>Table 15.</strong> Executed analysis, week by week.</caption>
+            <thead>
+              <tr><th scope="col">Notebook</th><th scope="col">What it establishes</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row"><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/work/notebooks/w01_research_question.ipynb"><code>w01_research_question</code></a></th>
+                <td>Research question, decision, cost of a wrong call</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/work/notebooks/w02_ml_task_framing.ipynb"><code>w02_ml_task_framing</code></a></th>
+                <td>Binary classification framing, target, success metric, unit of analysis</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/work/notebooks/w03_data_contract.ipynb"><code>w03_data_contract</code></a></th>
+                <td>Warehouse grain, March 2026 window, availability states, data limits</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/work/notebooks/w03_feature_leakage_check.ipynb"><code>w03_feature_leakage_check</code></a></th>
+                <td>The 26 feature vector, missing value handling, first leakage and privacy hunt</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/work/notebooks/w04_baseline_score.ipynb"><code>w04_baseline_score</code></a></th>
+                <td>Transparent baseline rule, ranked queue, top 20 review</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/work/notebooks/w04_signal_audit.ipynb"><code>w04_signal_audit</code></a></th>
+                <td>Three signal tests with verdicts and the flag linked freshness test</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/work/notebooks/w05_model.ipynb"><code>w05_model</code></a></th>
+                <td>Grouped split, Logistic Regression, model against baseline, error analysis</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/work/notebooks/w06_validation_audit.ipynb"><code>w06_validation_audit</code></a></th>
+                <td>Row based against client grouped comparison, final leakage audit, claim rewrite</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/work/notebooks/w07_action_playbook.ipynb"><code>w07_action_playbook</code></a></th>
+                <td>Reason codes, action mapping, confidence, exported queue and model card</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship/blob/main/work/notebooks/capstone.ipynb"><code>capstone</code></a></th>
+                <td>Capstone notebook mirroring the structure of this paper</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Repository: <a href="https://github.com/Nayab-khalid/FlyRank-AI-Internship">https://github.com/Nayab-khalid/FlyRank-AI-Internship</a></p>
+
+        <p>Before this work is treated as final, the complete workflow should be run again from a fresh clone so the reported numbers can be checked against a fresh execution.</p>
+      </section>
+
+      <section id="acknowledgments" aria-labelledby="acknowledgments-heading">
+        <h2 id="acknowledgments-heading"><span class="sec-num">9.</span>Acknowledgments and Data Credit</h2>
+
+        <p>Built on the FlyRank ML Internship dataset. Data source: <a href="https://flyrank.ai">https://flyrank.ai</a></p>
+
+        <p>This work was completed as part of the FlyRank ML Internship, in the Refresh and Content Opportunity Scoring lane.</p>
+
+        <p>The analysis uses anonymized data and follows the project's public safety requirements. No client names, private domains, private URLs or private search queries are included anywhere in this paper or its supporting artifacts.</p>
+      </section>
+
+      <footer>
+        <p>Nayab Khalid. FlyRank ML Internship, Refresh and Content Opportunity Scoring lane. August 2026.</p>
+        <p>Built on the FlyRank ML Internship dataset. Data source: <a href="https://flyrank.ai">flyrank.ai</a>. Anonymized data only. Decision support, not a prediction of any search engine's ranking system.</p>
+      </footer>
+
+    </main>
+  </div>
+</div>
+</body>
+</html>
