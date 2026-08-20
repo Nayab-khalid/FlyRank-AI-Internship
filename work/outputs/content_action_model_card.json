@@ -1,0 +1,21 @@
+{
+  "lane": "Refresh / Content Opportunity Scoring",
+  "purpose": "Rank pages for human review",
+  "human_review_required": true,
+  "automatic_publishing": false,
+  "automatic_pruning": false,
+  "automatic_url_merging": false,
+  "causal_claims": false,
+  "primary_limit": "A high score does not guarantee recovery after refresh.",
+  "validation_scope": "Anonymized starter slice with client-holdout validation",
+  "monitoring": [
+    "Precision@20",
+    "Precision@50",
+    "Average precision",
+    "Action distribution",
+    "Reason-code distribution",
+    "Feature distribution",
+    "Human-review agreement",
+    "Future-window validation"
+  ]
+}
