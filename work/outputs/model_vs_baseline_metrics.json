@@ -1,0 +1,14 @@
+[
+  {
+    "method":"Week-4 baseline",
+    "average_precision":0.4890692526,
+    "roc_auc":0.50651053,
+    "precision_at_50":0.3
+  },
+  {
+    "method":"Logistic Regression",
+    "average_precision":0.5960078289,
+    "roc_auc":0.5948772353,
+    "precision_at_50":0.7
+  }
+]

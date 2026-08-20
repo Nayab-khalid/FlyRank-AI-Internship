@@ -108,6 +108,14 @@ pages to review first (**Precision@50 ≈ 0.24 → 0.74**; the model number can 
 depending on library versions — the ~3x lift is the point). The notebooks compute these numbers
 live, so they always reflect the current data and environment.
 
+> **Note — these are the bundled `scripts/` pipeline's numbers, not my capstone result.**
+> My capstone lane (Refresh and Content Opportunity Scoring) is in `work/notebooks/`, and it
+> reports Precision@50 of 0.30 → 0.70 with Average Precision 0.489069 → 0.596008, measured
+> against a 51.1% test base rate under a client-grouped split. Those are lower than the numbers
+> above because I found and removed target leakage in my own feature set; `work/leakage_audit.py`
+> reproduces the whole before-and-after. Full write-up:
+> [the deployed paper](https://nayab-khalid.github.io/FlyRank-AI-Internship/).
+
 **Teaching point:** the model is the capstone, but the *workflow* is the lesson —
 `problem framing → data cleaning → baseline → first model → evaluation → explainable recommendation`.
 

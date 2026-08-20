@@ -36,7 +36,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
-from sklearn.model_selection import GroupShuffleSplit, ShuffleSplit, cross_val_score
+from sklearn.model_selection import (
+    GroupShuffleSplit, cross_val_score, train_test_split)
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
@@ -120,19 +121,24 @@ def week4_baseline(test_rows):
 
 
 def evaluate(df, numeric, split="group"):
+    """Split, fit, score. The row-based branch mirrors w06_validation_audit.ipynb,
+    which uses a stratified train_test_split, so the numbers agree."""
     X = df[numeric + CATEGORICAL]
     y = df["is_declining_label"]
     if split == "group":
         splitter = GroupShuffleSplit(n_splits=1, test_size=0.20, random_state=SEED)
         train_idx, test_idx = next(splitter.split(X, y, groups=df["client_id"]))
+        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+        y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+        test_rows = df.iloc[test_idx]
     else:
-        splitter = ShuffleSplit(n_splits=1, test_size=0.20, random_state=SEED)
-        train_idx, test_idx = next(splitter.split(X, y))
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.20, random_state=SEED, stratify=y)
+        test_rows = df.loc[X_test.index]
 
-    model = build_model(numeric).fit(X.iloc[train_idx], y.iloc[train_idx])
-    p = model.predict_proba(X.iloc[test_idx])[:, 1]
-    b = week4_baseline(df.iloc[test_idx])
-    y_test = y.iloc[test_idx]
+    model = build_model(numeric).fit(X_train, y_train)
+    p = model.predict_proba(X_test)[:, 1]
+    b = week4_baseline(test_rows)
 
     return {
         "test_base_rate": y_test.mean(),

@@ -749,6 +749,8 @@ label           = 1 when trend_direction == "down"</code></pre>
 <pre><code>documented rule vs label agreement: 1.000000
 positives predicted: 16,262    actual: 16,262</code></pre>
 
+        <p>The definition was not hidden. It is in the data dictionary, and I had already written it out myself in Week 6, in <code>w06_validation_audit.ipynb</code>, while questioning the validation design behind someone else's finding. I recorded that trend direction is calculated from the change in impressions between the most recent 30 days and the previous 30 days, and then did not check that definition against my own feature list. The audit that catches this is not more sophisticated than the one that missed it; it just tests the feature set instead of the column names.</p>
+
         <p>The clicks and sessions versions of the same two windows were removed as well. They are not the label by definition, but their ratio tracks the impression ratio closely enough to approximate it. Section 4 reports what the removal cost.</p>
 
         <p>Two checks were added so that this class of problem is caught by the audit rather than by a reader. The first applies each documented label formula to the surviving feature set and measures agreement. The second trains a random forest probe on the features alone and reports its cross validated accuracy: a probe that reaches near perfect accuracy on a task where a rule baseline sits at chance is reading the answer rather than learning it. On the 23 numeric features the probe reached 0.9122; on the 17 that remain it reaches 0.6994, against a base rate of 0.542.</p>
@@ -924,13 +926,13 @@ positives predicted: 16,262    actual: 16,262</code></pre>
           <div class="chart">
             <div class="row">
               <span class="lbl">Row based split</span>
-              <div class="track"><div class="bar" style="width:70.2%"></div></div>
-              <span class="val">0.7017</span>
+              <div class="track"><div class="bar" style="width:69.3%"></div></div>
+              <span class="val">0.6932</span>
             </div>
             <div class="row sub">
               <span class="lbl">26 features</span>
-              <div class="track"><div class="bar muted" style="width:93.7%"></div></div>
-              <span class="val">0.9365</span>
+              <div class="track"><div class="bar muted" style="width:93.6%"></div></div>
+              <span class="val">0.9355</span>
             </div>
             <div class="row">
               <span class="lbl">Client grouped</span>
@@ -943,7 +945,7 @@ positives predicted: 16,262    actual: 16,262</code></pre>
               <span class="val">0.8715</span>
             </div>
           </div>
-          <p class="fig-note">Removing client overlap costs 0.106 Average Precision on the corrected feature set, against 0.065 on the original. The client grouped number is the one reported throughout this paper.</p>
+          <p class="fig-note">Removing client overlap costs 0.097 Average Precision on the corrected feature set, against 0.064 on the original. The client grouped number is the one reported throughout this paper.</p>
         </figure>
 
         <p>Performance drops when client overlap is removed, which is the expected direction. Part of the row based result comes from the model recognizing clients it has already seen. The gap is larger on the corrected feature set than on the original one. Once the model can no longer read the label directly, more of what remains is client specific pattern rather than general signal.</p>
